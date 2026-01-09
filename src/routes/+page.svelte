@@ -53,23 +53,73 @@
   // Control mode: which element does drag/scroll affect?
   let controlMode: 'canvas' | 'head' | 'image' = $state('canvas');
 
-  // Canvas size
-  const canvasPresets = [
-    { name: 'HD (1920x1080)', width: 1920, height: 1080 },
-    { name: '4K (3840x2160)', width: 3840, height: 2160 },
-    { name: 'Square (1080x1080)', width: 1080, height: 1080 },
-    { name: 'Portrait (1080x1920)', width: 1080, height: 1920 },
-    { name: 'A4 Portrait', width: 2480, height: 3508 },
-    { name: 'A4 Landscape', width: 3508, height: 2480 },
-    { name: 'Letter Portrait', width: 2550, height: 3300 },
-    { name: 'Letter Landscape', width: 3300, height: 2550 },
-    { name: 'Custom', width: 0, height: 0 }
+  // Canvas size - DPI for physical sizes (300 DPI standard for print)
+  const DPI = 300;
+  const CM_PER_INCH = 2.54;
+  const cmToPixels = (cm: number) => Math.round(cm * DPI / CM_PER_INCH);
+  const inToPixels = (inches: number) => Math.round(inches * DPI);
+  const pixelsToCm = (px: number) => px * CM_PER_INCH / DPI;
+  const pixelsToIn = (px: number) => px / DPI;
+
+  type CanvasUnit = 'px' | 'cm' | 'in';
+
+  interface CanvasPreset {
+    name: string;
+    category: string;
+    width: number;  // in pixels
+    height: number; // in pixels
+    unit: CanvasUnit;
+    displayW: number; // original value in display unit
+    displayH: number;
+  }
+
+  const canvasPresets: CanvasPreset[] = [
+    // Digital (pixels)
+    { name: 'HD 1920×1080', category: 'Digital', width: 1920, height: 1080, unit: 'px', displayW: 1920, displayH: 1080 },
+    { name: '4K 3840×2160', category: 'Digital', width: 3840, height: 2160, unit: 'px', displayW: 3840, displayH: 2160 },
+    { name: 'Square 1080×1080', category: 'Digital', width: 1080, height: 1080, unit: 'px', displayW: 1080, displayH: 1080 },
+    { name: 'Instagram 1080×1350', category: 'Digital', width: 1080, height: 1350, unit: 'px', displayW: 1080, displayH: 1350 },
+
+    // Paper sizes (cm) - at 300 DPI
+    { name: 'A5 Portrait', category: 'Paper', width: cmToPixels(14.8), height: cmToPixels(21), unit: 'cm', displayW: 14.8, displayH: 21 },
+    { name: 'A5 Landscape', category: 'Paper', width: cmToPixels(21), height: cmToPixels(14.8), unit: 'cm', displayW: 21, displayH: 14.8 },
+    { name: 'A4 Portrait', category: 'Paper', width: cmToPixels(21), height: cmToPixels(29.7), unit: 'cm', displayW: 21, displayH: 29.7 },
+    { name: 'A4 Landscape', category: 'Paper', width: cmToPixels(29.7), height: cmToPixels(21), unit: 'cm', displayW: 29.7, displayH: 21 },
+    { name: 'A3 Portrait', category: 'Paper', width: cmToPixels(29.7), height: cmToPixels(42), unit: 'cm', displayW: 29.7, displayH: 42 },
+    { name: 'A3 Landscape', category: 'Paper', width: cmToPixels(42), height: cmToPixels(29.7), unit: 'cm', displayW: 42, displayH: 29.7 },
+    { name: 'Letter Portrait', category: 'Paper', width: cmToPixels(21.6), height: cmToPixels(27.9), unit: 'cm', displayW: 21.6, displayH: 27.9 },
+    { name: 'Letter Landscape', category: 'Paper', width: cmToPixels(27.9), height: cmToPixels(21.6), unit: 'cm', displayW: 27.9, displayH: 21.6 },
+
+    // Art canvas sizes (inches) - at 300 DPI
+    { name: '5×7"', category: 'Canvas', width: inToPixels(5), height: inToPixels(7), unit: 'in', displayW: 5, displayH: 7 },
+    { name: '8×10"', category: 'Canvas', width: inToPixels(8), height: inToPixels(10), unit: 'in', displayW: 8, displayH: 10 },
+    { name: '9×12"', category: 'Canvas', width: inToPixels(9), height: inToPixels(12), unit: 'in', displayW: 9, displayH: 12 },
+    { name: '11×14"', category: 'Canvas', width: inToPixels(11), height: inToPixels(14), unit: 'in', displayW: 11, displayH: 14 },
+    { name: '12×16"', category: 'Canvas', width: inToPixels(12), height: inToPixels(16), unit: 'in', displayW: 12, displayH: 16 },
+    { name: '16×20"', category: 'Canvas', width: inToPixels(16), height: inToPixels(20), unit: 'in', displayW: 16, displayH: 20 },
+    { name: '18×24"', category: 'Canvas', width: inToPixels(18), height: inToPixels(24), unit: 'in', displayW: 18, displayH: 24 },
+    { name: '24×36"', category: 'Canvas', width: inToPixels(24), height: inToPixels(36), unit: 'in', displayW: 24, displayH: 36 },
+
+    // Custom
+    { name: 'Custom', category: 'Custom', width: 0, height: 0, unit: 'px', displayW: 0, displayH: 0 }
   ];
-  let selectedPreset = $state('HD (1920x1080)');
+
+  // Group presets by category for the dropdown
+  const presetCategories = ['Digital', 'Paper', 'Canvas', 'Custom'];
+
+  let selectedPreset = $state('HD 1920×1080');
   let canvasWidth = $state(1920);
   let canvasHeight = $state(1080);
+  let currentUnit: CanvasUnit = $state('px');
   let customWidth = $state(1920);
   let customHeight = $state(1080);
+
+  // Format a pixel value in the current display unit
+  function formatInUnit(px: number, unit: CanvasUnit): string {
+    if (unit === 'cm') return pixelsToCm(px).toFixed(1);
+    if (unit === 'in') return pixelsToIn(px).toFixed(1);
+    return px.toString();
+  }
 
   function selectPreset(presetName: string) {
     selectedPreset = presetName;
@@ -77,6 +127,7 @@
     if (preset && preset.width > 0) {
       canvasWidth = preset.width;
       canvasHeight = preset.height;
+      currentUnit = preset.unit;
       customWidth = preset.width;
       customHeight = preset.height;
     }
@@ -246,6 +297,8 @@
             showLabels={showLandmarkLabels}
             {canvasWidth}
             {canvasHeight}
+            unit={currentUnit}
+            {formatInUnit}
           />
         {/if}
       </div>
@@ -267,8 +320,12 @@
           <label>
             <span class="label-text">Preset</span>
             <select onchange={(e) => selectPreset((e.target as HTMLSelectElement).value)} value={selectedPreset}>
-              {#each canvasPresets as preset}
-                <option value={preset.name}>{preset.name}</option>
+              {#each presetCategories as category}
+                <optgroup label={category}>
+                  {#each canvasPresets.filter(p => p.category === category) as preset}
+                    <option value={preset.name}>{preset.name}</option>
+                  {/each}
+                </optgroup>
               {/each}
             </select>
           </label>
@@ -284,7 +341,9 @@
             <button class="apply-btn" onclick={applyCustomSize}>Apply</button>
           </div>
           <div class="canvas-info">
-            <span class="label-text">Current: {canvasWidth} x {canvasHeight}</span>
+            <span class="label-text">
+              Current: {formatInUnit(canvasWidth, currentUnit)} × {formatInUnit(canvasHeight, currentUnit)} {currentUnit}
+            </span>
           </div>
           <label>
             <span class="label-text">View zoom <span class="value">{(canvasZoom * 100).toFixed(0)}%</span></span>
@@ -491,10 +550,14 @@
         </button>
         {#if openSections.landmarks}
           <div class="accordion-content coordinates-panel">
+            <div class="coord-header">
+              <span>Landmark</span>
+              <span>X, Y ({currentUnit})</span>
+            </div>
             {#each projectedLandmarks as landmark}
               <div class="coordinate-row" class:faded={!landmark.visible}>
                 <span class="coord-name">{landmark.name}</span>
-                <span class="coord-value">({landmark.x}, {landmark.y})</span>
+                <span class="coord-value">({formatInUnit(landmark.x, currentUnit)}, {formatInUnit(landmark.y, currentUnit)})</span>
               </div>
             {/each}
           </div>
@@ -588,7 +651,7 @@
     transform-origin: center;
     flex-shrink: 0;
     overflow: visible;
-    padding: 30px 0 0 60px;
+    padding: 30px 0 0 70px;
   }
 
   .canvas-area {
@@ -756,6 +819,18 @@
   .coordinates-panel {
     max-height: 300px;
     overflow-y: auto;
+  }
+
+  .coord-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0 8px;
+    font-size: 10px;
+    color: #666;
+    border-bottom: 1px solid #3a3a5a;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 
   .coordinate-row {

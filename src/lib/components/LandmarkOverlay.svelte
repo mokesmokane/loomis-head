@@ -1,14 +1,25 @@
 <script lang="ts">
   import type { ProjectedLandmark } from '$lib/utils/landmarks';
 
+  type CanvasUnit = 'px' | 'cm' | 'in';
+
   interface Props {
     landmarks: ProjectedLandmark[];
     showLabels?: boolean;
     canvasWidth: number;
     canvasHeight: number;
+    unit?: CanvasUnit;
+    formatInUnit?: (px: number, unit: CanvasUnit) => string;
   }
 
-  let { landmarks, showLabels = false, canvasWidth, canvasHeight }: Props = $props();
+  let {
+    landmarks,
+    showLabels = false,
+    canvasWidth,
+    canvasHeight,
+    unit = 'px',
+    formatInUnit = (px: number) => px.toString()
+  }: Props = $props();
 
   let hoveredLandmark: ProjectedLandmark | null = $state(null);
 
@@ -47,24 +58,24 @@
     <!-- X coordinate label above canvas -->
     <g class="coord-label">
       <rect
-        x={hoveredLandmark.x - 25}
+        x={hoveredLandmark.x - 30}
         y={-22}
-        width="50"
+        width="60"
         height="18"
         rx="3"
       />
-      <text x={hoveredLandmark.x} y={-8}>{hoveredLandmark.x}</text>
+      <text x={hoveredLandmark.x} y={-8}>{formatInUnit(hoveredLandmark.x, unit)}</text>
     </g>
     <!-- Y coordinate label left of canvas -->
     <g class="coord-label">
       <rect
-        x={-54}
+        x={-64}
         y={hoveredLandmark.y - 9}
-        width="50"
+        width="60"
         height="18"
         rx="3"
       />
-      <text x={-29} y={hoveredLandmark.y + 4}>{hoveredLandmark.y}</text>
+      <text x={-34} y={hoveredLandmark.y + 4}>{formatInUnit(hoveredLandmark.y, unit)}</text>
     </g>
     <!-- Landmark name tooltip -->
     <g class="landmark-tooltip">
@@ -136,7 +147,7 @@
   .landmark-overlay {
     position: absolute;
     top: 30px;
-    left: 60px;
+    left: 70px;
     overflow: visible;
     pointer-events: none;
   }
